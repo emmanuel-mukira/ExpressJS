@@ -1,8 +1,13 @@
 
 import express from "express";
 
-import {query} from "express-validator";
-//import query middleware function to validate query parameters
+import {query,
+  validationResult,
+  body,
+  matchedData,
+  checkSchema
+} from "express-validator";
+import { createUserValidationSchema, getUsersValidationSchema } from "./utils/validationSchemas.mjs";
 
 const app=express();
 //gives an instance of an express application
@@ -119,17 +124,27 @@ app.get("/api/users/:id",resolveIndexUserById,(request,response)=>{
 // on something like age from smallest to greatest
 // we would use query parameters for that
 
+//call query middleware function before the request itself
+//specify query parameter to validate in this case filter
+//call multiple methods as part of the validation chain to validate 
+//that single query paramter
+//Query paramters in Express are always parsed as strings
+//.notEmpty() make sure it isn't empty
+//query function does not handle errors we need to handle them
+//ourselves
+app.get("/api/users",checkSchema(getUsersValidationSchema),(request,response)=>{
+  //call validationResult function on the request object 
+  //to extract validation errors which you can handle yourself
+  const result = validationResult(request);
+  //validation for : 
+  //localhost:3000/api/users?filter=username&value=sally
+  if(!result.isEmpty()){
+    return response.status(400).send({errors:result.array()});
+  }
 
-app.get("/api/users",(request,response)=>{
-  console.log(request.query);
-  //destructuring the query parameters
   const{query:{filter,value}}=request;
 
-  //when filter and value are defined you can now filter
-  //use the filter method on the array of objects
-  //it takes a callback function or predicate function
-  //which check if the filter key has a value that includes
-  //parameter passed in the value part .includes() only works for strings
+  
   if(filter && value) return response.send(
     testUsers.filter((user)=>user[filter].includes(value))
   );
@@ -144,15 +159,20 @@ app.get("/api/users",(request,response)=>{
 //and pass another key value pair of value with what you want 
 //console.log output: { filter: 'username', value: 'l' }
 
-//POST request
-app.post("/api/users",(request,response)=>{
-  //Destructuring the request body
 
-  const {body}=request;
-  //Auto add +1 to id for last user in testUser array 
-  //Then use spread operator to take all fields from body object and unpack it
-  //into new object being created and add newUser to testUsers
-  const newUser={id:testUsers[testUsers.length-1].id+1,...body};
+app.post("/api/users",checkSchema(createUserValidationSchema),(request,response)=>{
+  const result=validationResult(request);
+  //if result is not empty
+  if(!result.isEmpty()){
+    return response.status(400).send({errors: result.array()});
+  }
+
+  //matchedData function retrieves the data that has been validated
+  //and that is what is used to add to the 'database'
+  const data=matchedData(request);
+  console.log(data);
+
+  const newUser={id:testUsers[testUsers.length-1].id+1,...data};
   testUsers.push(newUser);
   response.status(201).send(testUsers);
 })
