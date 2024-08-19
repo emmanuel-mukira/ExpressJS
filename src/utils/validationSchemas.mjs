@@ -33,6 +33,7 @@ export const createUserValidationSchema={
 
 export const getUsersValidationSchema={
    filter:{
+      optional:true,
       isString:{
          errorMessage:"Must be a string",
       },
